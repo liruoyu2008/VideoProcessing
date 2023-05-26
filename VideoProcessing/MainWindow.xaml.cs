@@ -52,10 +52,16 @@ namespace VideoProcessing
 
         // 处理参数（此处采用反比例函数模型进行处理）
         // m,n的值由反比例函数模型b=n/(c+m)得到，其中，b为亮度，c为对比度。
-        // 解方程组 【亮度处理上限】=n/(【对比度处理下限】)+m) & 【亮度处理上限】=n/(对比度处理下限】+m)，可得m=, n= .
+        // 解方程组 【亮度处理上限】=n/(【对比度处理下限】)+m) & 【亮度处理上限】=n/(对比度处理下限】+m)，可得m，n.
+        // 注，该方程组由于对反比例函数进行了横向缩放和平移，因此，计算出的c最终可能<0，为避免该情况，求得的对比度小于1时，使用1进行处理.
         double PARA_THRESHOLD_BRIGHTNESS_MAX = 130;     //【亮度处理上限】。画面中曝光较好不用处理的帧的亮度，高于该亮度将直接使用原始帧。
         double PARA_THRESHOLD_BRIGHTNESS_MIN = 70;      //【亮度处理下限】。画面中曝光较差且帧数较多的帧的亮度，
-        double PARA_COMPENSATION_CONTRAST_MAX = 2.65;    //【对比度处理上限】。将【亮度处理下限】帧提升到较好的画质需要提升的对比度系数。【对比度处理下限】始终为常数1。
+        double PARA_COMPENSATION_CONTRAST_MAX = 2.65;   //【对比度处理上限】。将【亮度处理下限】帧提升到较好的画质需要提升的对比度系数。
+        double PARA_COMPENSATION_CONTRAST_MIN = 1;      //【对比度处理下限】。一般情况下应为常数1。
+        double PARA_THRESHOLD_BRIGHTNESS_MAX_DEFAULT = 130;     //【亮度处理上限】默认值
+        double PARA_THRESHOLD_BRIGHTNESS_MIN_DEFAULT = 70;      //【亮度处理下限】默认值
+        double PARA_COMPENSATION_CONTRAST_MAX_DEFAULT = 2.65;   //【对比度处理上限】默认值
+        double PARA_COMPENSATION_CONTRAST_MIN_DEFAULT = 1;      //【对比度处理下限】默认值
         double M;
         double N;
 
@@ -63,7 +69,19 @@ namespace VideoProcessing
         {
             InitializeComponent();
 
-            (M, N) = SolveEquations(PARA_THRESHOLD_BRIGHTNESS_MIN, PARA_COMPENSATION_CONTRAST_MAX, PARA_THRESHOLD_BRIGHTNESS_MAX, 1);
+            (M, N) = SolveEquations(PARA_THRESHOLD_BRIGHTNESS_MIN, PARA_COMPENSATION_CONTRAST_MAX, PARA_THRESHOLD_BRIGHTNESS_MAX, PARA_COMPENSATION_CONTRAST_MIN);
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            slider_brigtness_max.ValueChanged += slider_brigtness_max_ValueChanged;
+            slider_brigtness_min.ValueChanged += slider_brigtness_min_ValueChanged;
+            slider_contrast_max.ValueChanged += slider_contrast_max_ValueChanged;
+            slider_contrast_min.ValueChanged += slider_contrast_min_ValueChanged;
+            slider_brigtness_max.Value = PARA_THRESHOLD_BRIGHTNESS_MAX;
+            slider_brigtness_min.Value = PARA_THRESHOLD_BRIGHTNESS_MIN;
+            slider_contrast_max.Value = PARA_COMPENSATION_CONTRAST_MAX;
+            slider_contrast_min.Value = PARA_COMPENSATION_CONTRAST_MIN;
         }
 
         /// <summary>
@@ -161,8 +179,17 @@ namespace VideoProcessing
                 return;
             }
 
+
             if (btn_process.Tag == null)
             {
+                if (File.Exists(_output_fullname))
+                {
+                    if (MessageBox.Show(this, "目标文件已存在，处理过程将会覆盖该文件，是否继续？", "提示", MessageBoxButton.OKCancel) != MessageBoxResult.OK)
+                    {
+                        return;
+                    }
+                }
+
                 slider.Value = 0;
 
                 // 控制状态改变
@@ -171,6 +198,7 @@ namespace VideoProcessing
                 btn_openfile.IsEnabled = false;
                 btn_preview.IsEnabled = false;
                 slider.IsEnabled = false;
+                bd_settings.IsEnabled = false;
                 _processing = true;
                 _watcher.Restart();
                 tb_status.Visibility = Visibility.Visible;
@@ -195,6 +223,7 @@ namespace VideoProcessing
                 btn_openfile.IsEnabled = true;
                 btn_preview.IsEnabled = true;
                 slider.IsEnabled = true;
+                bd_settings.IsEnabled = true;
                 _processing = false;
                 _watcher.Stop();
                 tb_status.Visibility = Visibility.Collapsed;
@@ -310,7 +339,8 @@ namespace VideoProcessing
 
             // 对比度调整
             Mat img2 = new Mat();
-            var c = (N / b) - M;
+            var tempC = (N / b) - M;
+            var c = tempC > PARA_COMPENSATION_CONTRAST_MIN ? tempC : PARA_COMPENSATION_CONTRAST_MIN;
             img.ConvertTo(img2, MatType.CV_8UC3, b <= PARA_THRESHOLD_BRIGHTNESS_MIN ? PARA_COMPENSATION_CONTRAST_MAX : c, 0);
             var b2 = GetBrightness(img2);
             if (b2 > PARA_THRESHOLD_BRIGHTNESS_MAX)
@@ -483,5 +513,47 @@ namespace VideoProcessing
             _writer?.Release();
             _cap?.Release();
         }
+
+
+        #region 参数设置
+
+        private void slider_brigtness_max_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            PARA_THRESHOLD_BRIGHTNESS_MAX = Math.Round(e.NewValue, 2);
+            tb_brightness_max.Text = PARA_THRESHOLD_BRIGHTNESS_MAX.ToString();
+            (M, N) = SolveEquations(PARA_THRESHOLD_BRIGHTNESS_MIN, PARA_COMPENSATION_CONTRAST_MAX, PARA_THRESHOLD_BRIGHTNESS_MAX, PARA_COMPENSATION_CONTRAST_MIN);
+        }
+
+        private void slider_contrast_min_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            PARA_COMPENSATION_CONTRAST_MIN = Math.Round(e.NewValue, 2);
+            tb_contrast_min.Text = PARA_COMPENSATION_CONTRAST_MIN.ToString();
+            (M, N) = SolveEquations(PARA_THRESHOLD_BRIGHTNESS_MIN, PARA_COMPENSATION_CONTRAST_MAX, PARA_THRESHOLD_BRIGHTNESS_MAX, PARA_COMPENSATION_CONTRAST_MIN);
+        }
+
+        private void slider_brigtness_min_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            PARA_THRESHOLD_BRIGHTNESS_MIN = Math.Round(e.NewValue, 2);
+            tb_brightness_min.Text = PARA_THRESHOLD_BRIGHTNESS_MIN.ToString();
+            (M, N) = SolveEquations(PARA_THRESHOLD_BRIGHTNESS_MIN, PARA_COMPENSATION_CONTRAST_MAX, PARA_THRESHOLD_BRIGHTNESS_MAX, PARA_COMPENSATION_CONTRAST_MIN);
+        }
+
+        private void slider_contrast_max_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            PARA_COMPENSATION_CONTRAST_MAX = Math.Round(e.NewValue, 2);
+            tb_contrast_max.Text = PARA_COMPENSATION_CONTRAST_MAX.ToString();
+            (M, N) = SolveEquations(PARA_THRESHOLD_BRIGHTNESS_MIN, PARA_COMPENSATION_CONTRAST_MAX, PARA_THRESHOLD_BRIGHTNESS_MAX, PARA_COMPENSATION_CONTRAST_MIN);
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            slider_brigtness_max.Value = PARA_THRESHOLD_BRIGHTNESS_MAX_DEFAULT;
+            slider_brigtness_min.Value = PARA_THRESHOLD_BRIGHTNESS_MIN_DEFAULT;
+            slider_contrast_max.Value = PARA_COMPENSATION_CONTRAST_MAX_DEFAULT;
+            slider_contrast_min.Value = PARA_COMPENSATION_CONTRAST_MIN_DEFAULT;
+        }
+
+        #endregion
+
     }
 }

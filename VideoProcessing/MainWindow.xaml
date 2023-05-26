@@ -9,9 +9,10 @@
     Height="720"
     MinWidth="800"
     MinHeight="480"
+    Closing="Window_Closing"
+    Loaded="Window_Loaded"
     PreviewKeyDown="Window_PreviewKeyDown"
     PreviewKeyUp="Window_PreviewKeyUp"
-    Closing="Window_Closing"
     mc:Ignorable="d">
     <Window.Resources>
         <Style BasedOn="{StaticResource TextBlockDefaultPrimary}" TargetType="TextBlock" />
@@ -48,6 +49,7 @@
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="40" />
+            <RowDefinition Height="60" />
             <RowDefinition Height="40" />
             <RowDefinition />
             <RowDefinition Height="80" />
@@ -72,19 +74,112 @@
                 Click="btn_openfile_Click"
                 Content="浏览文件" />
         </Grid>
-        <UniformGrid Grid.Row="1" Columns="2">
+        <Border
+            Name="bd_settings"
+            Grid.Row="1"
+            Style="{StaticResource BorderRegion}">
+            <Grid Margin="0,-8,-6,-8">
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    HorizontalAlignment="Left"
+                    Text="参数设置" />
+                <Button
+                    Name="btn_default"
+                    Grid.Row="0"
+                    Grid.Column="3"
+                    HorizontalAlignment="Right"
+                    Click="Button_Click"
+                    Content="恢复默认值"
+                    Style="{StaticResource ButtonInfo.Small}" />
+                <Slider
+                    Name="slider_brigtness_max"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Maximum="255"
+                    Minimum="100"
+                    Style="{StaticResource BaseStyle}"
+                    ToolTip="通过预览功能，选择视频中亮度表现较好的帧的普遍亮度值，不要选则少数择特殊高亮度值。" />
+                <Slider
+                    Name="slider_contrast_min"
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Maximum="1"
+                    Minimum="0.2"
+                    Style="{StaticResource BaseStyle}"
+                    ToolTip="对于典型高亮度帧的处理系数。由于典型高亮度帧表现效果较好，因此该系数一般取接近1的值。" />
+                <Slider
+                    Name="slider_brigtness_min"
+                    Grid.Row="1"
+                    Grid.Column="2"
+                    Maximum="99"
+                    Minimum="0"
+                    Style="{StaticResource BaseStyle}"
+                    ToolTip="通过预览功能，选择视频中亮度表现较差的帧的普遍亮度值。不要选则少数择特殊低亮度值。" />
+                <Slider
+                    Name="slider_contrast_max"
+                    Grid.Row="1"
+                    Grid.Column="3"
+                    Maximum="8"
+                    Minimum="1.2"
+                    Style="{StaticResource BaseStyle}"
+                    ToolTip="对于典型低亮度帧的处理系数。由于典型低亮度帧表现效果较差，因此该系数一般取大于2的值。" />
+                <UniformGrid
+                    Grid.Row="2"
+                    Grid.Column="0"
+                    Columns="2">
+                    <TextBlock HorizontalAlignment="Right" Text="高亮度典型值: " />
+                    <TextBlock Name="tb_brightness_max" HorizontalAlignment="Left" />
+                </UniformGrid>
+                <UniformGrid
+                    Grid.Row="2"
+                    Grid.Column="1"
+                    Columns="2">
+                    <TextBlock HorizontalAlignment="Right" Text="高亮处理参数: " />
+                    <TextBlock Name="tb_contrast_min" HorizontalAlignment="Left" />
+                </UniformGrid>
+                <UniformGrid
+                    Grid.Row="2"
+                    Grid.Column="2"
+                    Columns="2">
+                    <TextBlock HorizontalAlignment="Right" Text="低亮度典型值: " />
+                    <TextBlock Name="tb_brightness_min" HorizontalAlignment="Left" />
+                </UniformGrid>
+                <UniformGrid
+                    Grid.Row="2"
+                    Grid.Column="3"
+                    Columns="2">
+                    <TextBlock HorizontalAlignment="Right" Text="低亮处理参数: " />
+                    <TextBlock Name="tb_contrast_max" HorizontalAlignment="Left" />
+                </UniformGrid>
+            </Grid>
+        </Border>
+        <UniformGrid Grid.Row="2" Columns="2">
             <Button
                 Name="btn_preview"
                 Click="btn_preview_Click"
-                Content="预览" />
+                Content="预览"
+                ToolTip="通过预览功能全览整个视频的亮度值分布，选取合适的【高低亮度典型值】，并观测不同【处理系数】下的处理结果，实时调整参数。" />
             <Button
                 Name="btn_process"
                 Click="btn_process_Click"
-                Content="处理" />
+                Content="处理"
+                ToolTip="处理过程中不允许随意设置参数。" />
         </UniformGrid>
         <Border
             Name="bd_video"
-            Grid.Row="2"
+            Grid.Row="3"
             Style="{StaticResource BorderRegion}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -140,7 +235,7 @@
                         <TextBlock Text="亮度:" />
                         <TextBlock Name="tb_brightess_raw" />
                     </StackPanel>
-                    <StackPanel>
+                    <StackPanel Visibility="Collapsed">
                         <TextBlock Text="对比度:" />
                         <TextBlock Name="tb_contrast_raw" />
                     </StackPanel>
@@ -153,7 +248,7 @@
                         <TextBlock Text="亮度:" />
                         <TextBlock Name="tb_brightess_output" />
                     </StackPanel>
-                    <StackPanel Margin="8,0,8,0">
+                    <StackPanel Margin="8,0,8,0" Visibility="Collapsed">
                         <TextBlock Text="对比度:" />
                         <TextBlock Name="tb_contrast_output" />
                     </StackPanel>
@@ -162,7 +257,7 @@
         </Border>
         <Grid
             Name="control"
-            Grid.Row="3"
+            Grid.Row="4"
             Margin="0,8,0,0">
             <Grid>
                 <Grid.RowDefinitions>
